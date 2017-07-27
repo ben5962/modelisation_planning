@@ -1,0 +1,151 @@
+digraph G {
+// description des classes
+node [shape="note"]
+    "postes d un planning \n horod_debut: DateTime \n horod_fin : Datetime \n type_poste : ENUM \n categorie : ENUM"
+    "sce fp doit comporter nb paniers"
+	"classe fp doit comporter nb paniers"
+	"classe fp: INTEGER pk not null primary_key \n INTEGER annee \n INTEGER mois \n INTEGER nb_paniers \n INTEGER heures_supplementaires25 \n INTEGER heures_nuit_hors_dim_et_dimjour10 \n INTEGER heures_dim20"
+	"sce orig documentaire doit comporter pk\n pour plug optionnel \n Postes"
+	"Postes doit comporter pk \n pour plug optionnel sceDocumentaire"
+	"tbl interm \n INTEGER not null primary key \n INTEGER fk_sce references(Source.pk) \n INTEGER fk_dest refences(Postes.pk)"
+	// les entrees
+node [shape="larrow"]    
+    "source texte \n liste jours fériés"
+    "source fich Postes"
+    "source fich sabattique"
+    "source fich paye"
+    "source origine documentaire"
+// les sorties
+node [shape = "rarrow"]
+"class HeuresSupplementairesDuesEffectueesDifference(Base)"
+"class HeuresNuitSemaineDimancheJourDuesEffectueesDifference(Base)"
+"HeuresDimancheNuitEffectueesPayeesDifference(Base)"
+"HeuresJoursFerieDuesEffectueesDifference(Base)"
+"class ChevauchementCP(Base)"
+"class VolumeHoraireANnuelVolumeAnnuel39HeuresDifference(Base)"
+"class AnomaliePlusDe48(Base)"
+"class AnomaliePlusDe48SemaineGlissante(Base)"
+"class AnomalieRespectViePriveeDimanchesTotauxtrimCPHorsCpMoitiesupFourniesDifference(Base)"
+"class  AnomalieCongesImposesPendantPeriodeSabattique(Base)"
+"class PaniersDusPaniersPayesDifference"
+// les tables intermediaires
+node [shape="box"]
+// liste des classes pour n en oublier aucune
+"class sourceDocumentaire"
+ "class Postes(Base):"
+"Class PaniersDus(Base)"
+"class JoursTravailles(Base)"
+"class FichePaye(Base)"
+"class ExclureSabatique(Base)"
+
+
+//TACHE "class HeuresSupplementairesDuesEffectueesDifference(Base)"
+"class Postes(Base):" -> "class JoursTravailles(Base)" [label = "split de donnees: 1 ligne \n en donne \n 1 ou 2 \n trigger"]
+ "class JoursTravailles(Base)" -> "necessite trigger"
+ "necessite trigger" -> {"trigger sqlite raw sql" "ddl orm" "evt orm"  }
+  "class JoursTravailles(Base)" -> "class SemainesTravaillees(Base)" [label = "agregat via vue \n sum(fin période - début periode) \n group by (sem_iso, annee_iso)"]
+"class SemainesTravaillees(Base)" -> "class HeuresSupplementairesDuesEffectueesDifference(Base)"
+"class FichePaye(Base)"   -> "class HeuresSupplementairesDuesEffectueesDifference(Base)" [label = "jointure entre: \n mois de fp \n vaut  mois de fin de semaineiso \n ET  annee_fp vaut \n annee fin semaine_iso" ]
+// FIN TACHE
+
+// TACHE class HeuresNuitSemaineDimancheJourDuesEffectueesDifference(Base)"
+"class JoursTravailles(Base)"   -> "class HeuresJoursNuitTravaillees(Base)"  [label = "split de donnees: 1 ligne \n en donne \n 1 ou 2 \n trigger"]
+"class HeuresJoursNuitTravaillees(Base)" -> { "class HeuresNuitSemaineDimancheJourDuesEffectueesDifference(Base)" "HeuresDimancheNuitEffectueesPayeesDifference(Base)" }
+// FIN TACHE
+
+// TACHE "HeuresDimancheNuitEffectueesPayeesDifference(Base)"
+// FIN TACHE 
+
+// TACHE "HeuresJoursFerieDuesEffectueesDifference(Base)"
+// FIN TACHE 
+
+// TACHE "class ChevauchementCP(Base)"
+ "class Postes(Base):" -> "class CP"
+ "class CP" -> "class ChevauchementCP(Base)"
+ "class JoursTravailles(Base)" -> "class ChevauchementCP(Base)"
+// FIN TACHE
+
+// TACHE "class VolumeHoraireANnuelVolumeAnnuel39HeuresDifference(Base)"
+// FIN TACHE
+
+
+// TACHE "class AnomaliePlusDe48(Base)"
+// FIN TACHE 
+
+// TACHE "class AnomaliePlusDe48SemaineGlissante(Base)"
+// FIN TACHE
+
+// TACHE "class AnomalieRespectViePriveeDimanchesTotauxtrimCPHorsCpMoitiesupFourniesDifference(Base)"
+// TACHE NOMBRE DE WE RESPECT VIE PRIVEE 
+"class JoursTravailles(Base)" -> "class AnomalieRespectViePriveeDimanchesTotauxtrimCPHorsCpMoitiesupFourniesDifference(Base)"
+"calcul ListeDimanchesAnnuels" -> "class ListeDimanchesTrimestre"
+"class CP" -> "class AnomalieRespectViePriveeDimanchesTotauxtrimCPHorsCpMoitiesupFourniesDifference(Base)"
+"class ListeDimanchesTrimestre" -> "class AnomalieRespectViePriveeDimanchesTotauxtrimCPHorsCpMoitiesupFourniesDifference(Base)"
+"class JoursTravailles(Base)" -> "class AnomalieRespectViePriveeDimanchesTotauxtrimCPHorsCpMoitiesupFourniesDifference(Base)"
+// FIN TACHE NOMBRE DE WE RESPECT VIE PRIMVEE
+// FIN TACHE 
+
+// TACHE "class  AnomalieCongesImposesPendantPeriodeSabattique(Base)"
+// FIN TACHE 
+
+// TACHE "class PaniersDusPaniersPayesDifference"
+ // TACHE VERIFICATION DES PANIERS PAYES = PANIERS DUS
+ "class Postes(Base):" -> "Class PaniersDus(Base)" [label = "agregat via vue \n count(Postes) \n group by \n mois(Postes.debut), \n annee(Postes.debut)"]
+ "Class PaniersDus(Base)" -> "create view as select..." [label = "necessite vues ds slqalch" ]
+     "sce fp doit comporter nb paniers" -> "source fich paye" 
+	"classe fp doit comporter nb paniers" -> "class FichePaye(Base)" 
+	"class FichePaye(Base)" -> "class PaniersPayes"
+	"class PaniersPayes" -> "class PaniersDusPaniersPayesDifference"
+	"class ExclureSabattique" -> "Class PaniersDus(Base)"
+	"Class PaniersDus(Base)" -> "class PaniersDusPaniersPayesDifference"
+ // FIN DE TACHE VERIFICATION PANIERS PAYES = PANIERS DUS
+// FIN TACHE
+
+
+
+// TACHE CONSTRUCTION DU PLANNING
+"source fich Postes" -> "class Postes(Base):"
+"postes d un planning \n horod_debut: DateTime \n horod_fin : Datetime \n type_poste : ENUM \n categorie : ENUM" -> "class Postes(Base):"
+"source origine documentaire" -> "class sourceDocumentaire"
+"class sourceDocumentaire" -> "tbl interm"
+"tbl interm" -> "class Postes(Base):"
+"sce orig documentaire doit comporter pk\n pour plug optionnel \n Postes"  -> "class sourceDocumentaire" 
+"Postes doit comporter pk \n pour plug optionnel sceDocumentaire" -> "class Postes(Base):"
+"tbl interm \n INTEGER not null primary key \n INTEGER fk_sce references(Source.pk) \n INTEGER fk_dest refences(Postes.pk)" -> "tbl interm"
+// FIN TACHE CONSTRUCTION DU PLANNING
+
+// TACHE CONSTRUCTION FICHE PAYE
+"classe fp: INTEGER pk not null primary_key \n INTEGER annee \n INTEGER mois \n INTEGER nb_paniers \n INTEGER heures_supplementaires25 \n INTEGER heures_nuit_hors_dim_et_dimjour10 \n INTEGER heures_dim20" -> "class FichePaye(Base)"
+ "source fich paye" -> "class FichePaye(Base)" [label = "insert(choose)" ]
+// FIN TACHE
+
+// TACHE VOLUME HORAIRE ANNUEL 39 HEURES
+ // SOUS TACHE exclure sabattique des heures à effectuer annuellement.
+ "class ExclureSabatique(Base)" -> "class VolumeHoraireANnuelVolumeAnnuel39HeuresDifference(Base)"
+ // FIN DE TACHE VOLUME HORAIRE ANNUEL 39 HEURES
+ 
+ 
+ // TACHE sabattique : relever les cp imposés lors période sabattique
+ "source fich sabattique" -> "class ExclureSabatique(Base)"
+ "class ExclureSabatique(Base)" -> "class  AnomalieCongesImposesPendantPeriodeSabattique(Base)"
+ "class CP" -> "class  AnomalieCongesImposesPendantPeriodeSabattique(Base)"
+ // fin tache
+ 
+
+ 
+
+ 
+ 
+
+ 
+      
+"class SemainesTravaillees(Base)"
+
+
+
+"class SemainesTravaillees(Base)" -> "class AnomaliePlusDe48(Base)"
+"class JoursTravailles(Base)" -> "class AnomaliePlusDe48SemaineGlissante(Base)" [label = "algo à déterminer"]
+"source texte \n liste jours fériés" -> "HeuresJoursFerieDuesEffectueesDifference(Base)"
+"class JoursTravailles(Base)" -> "HeuresJoursFerieDuesEffectueesDifference(Base)"
+    
+}
