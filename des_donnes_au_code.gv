@@ -1,13 +1,14 @@
 digraph G {
 // description des classes
 node [shape="note"]
-    "postes d un planning \n horod_debut: DateTime \n horod_fin : Datetime \n type_poste : ENUM \n categorie : ENUM"
+    "postes d un planning \n pk: INTEGER NOT NULL PRIMARY KEY \n horod_debut: DateTime \n horod_fin : Datetime \n type_poste : ENUM \n categorie : ENUM" -> "class Postes(Base):"
     "sce fp doit comporter nb paniers"
 	"classe fp doit comporter nb paniers"
 	"classe fp: INTEGER pk not null primary_key \n INTEGER annee \n INTEGER mois \n INTEGER nb_paniers \n INTEGER heures_supplementaires25 \n INTEGER heures_nuit_hors_dim_et_dimjour10 \n INTEGER heures_dim20"
 	"sce orig documentaire doit comporter pk\n pour plug optionnel \n Postes"
 	"Postes doit comporter pk \n pour plug optionnel sceDocumentaire"
 	"tbl interm \n INTEGER not null primary key \n INTEGER fk_sce references(Source.pk) \n INTEGER fk_dest refences(Postes.pk)"
+	"table hsup \n INTEGER not null primary key \n INTEGER mois \n integer ANNEE \n INTEGER DU_25 \n INTEGER PAYE_25 \n INTEGER DIFF_25 \n INTEGER DU_50 \n INTEGER PAYE_50 \n INTEGER DIFF_50 \n INTEGER EQV_HTRAV_SOMMEDIFF"
 	// les entrees
 node [shape="larrow"]    
     "source texte \n liste jours fériés"
@@ -40,12 +41,20 @@ node [shape="box"]
 
 
 //TACHE "class HeuresSupplementairesDuesEffectueesDifference(Base)"
+  // constructin de jourstravailles depuis postes
 "class Postes(Base):" -> "class JoursTravailles(Base)" [label = "split de donnees: 1 ligne \n en donne \n 1 ou 2 \n trigger"]
  "class JoursTravailles(Base)" -> "necessite trigger"
  "necessite trigger" -> {"trigger sqlite raw sql" "ddl orm" "evt orm"  }
+  // construction de semaines travaillees depuis jourstravailles
   "class JoursTravailles(Base)" -> "class SemainesTravaillees(Base)" [label = "agregat via vue \n sum(fin période - début periode) \n group by (sem_iso, annee_iso)"]
 "class SemainesTravaillees(Base)" -> "class HeuresSupplementairesDuesEffectueesDifference(Base)"
+  //  heures sup payees 47 * 4 = 188 heures annuelles (le reste = 20 h ds cp):  soit 17,33 tt le temps sauf cp soit 4h en moins  par semaine (reel).  ou 4h / semaine sauf semaines cp.
+  // 4h par semaine à 25% fonctionne donc. exclure semaines de cp. 
+  // du coup : 
+  "class CP" -> "class HeuresSupplementairesDuesEffectueesDifference(Base)" [label = "exclure semaines cp"]
+  // TODO : pb semaines de cp incompletes : retirer 4 h x n/5 x nb_jr_cp
 "class FichePaye(Base)"   -> "class HeuresSupplementairesDuesEffectueesDifference(Base)" [label = "jointure entre: \n mois de fp \n vaut  mois de fin de semaineiso \n ET  annee_fp vaut \n annee fin semaine_iso" ]
+"table hsup \n INTEGER not null primary key \n INTEGER mois \n integer ANNEE \n INTEGER DU_25 \n INTEGER PAYE_25 \n INTEGER DIFF_25 \n INTEGER DU_50 \n INTEGER PAYE_50 \n INTEGER DIFF_50 \n INTEGER EQV_HTRAV_SOMMEDIFF" -> "class HeuresSupplementairesDuesEffectueesDifference(Base)"
 // FIN TACHE
 
 // TACHE class HeuresNuitSemaineDimancheJourDuesEffectueesDifference(Base)"
@@ -105,7 +114,7 @@ node [shape="box"]
 
 // TACHE CONSTRUCTION DU PLANNING
 "source fich Postes" -> "class Postes(Base):"
-"postes d un planning \n horod_debut: DateTime \n horod_fin : Datetime \n type_poste : ENUM \n categorie : ENUM" -> "class Postes(Base):"
+"postes d un planning \n pk: INTEGER NOT NULL PRIMARY KEY \n horod_debut: DateTime \n horod_fin : Datetime \n type_poste : ENUM \n categorie : ENUM" -> "class Postes(Base):"
 "source origine documentaire" -> "class sourceDocumentaire"
 "class sourceDocumentaire" -> "tbl interm"
 "tbl interm" -> "class Postes(Base):"
