@@ -2,7 +2,17 @@ digraph G {
 
 // description des classes
 node [shape="cylinder" color="blue"]
-"postes d un planning \n pk: INTEGER NOT NULL PRIMARY KEY \n horod_debut: DateTime \n horod_fin : Datetime \n type_poste : ENUM \n categorie : ENUM"
+"postes d un planning
+pk: INTEGER NOT NULL PRIMARY KEY
+ horod_debut: DateTime
+ horod_fin : Datetime
+ type_poste : ENUM
+ categorie : ENUM
+ numero_semaine_iso INTEGER
+ numero_annee_iso INTEGER
+ date_mail
+ nom_fichier_joint"
+
 "classe fp: INTEGER pk not null primary_key \n INTEGER annee \n INTEGER mois \n INTEGER nb_paniers \n INTEGER hsup_25_aubry \n INTEGER INDEMNITECP \n INTEGER hsup_25_annu_domo  \n INTEGER heures_nuit_hors_dim_et_dimjour10 \n INTEGER heures_dim20"
         "tbl interm \n INTEGER not null primary key \n INTEGER fk_sce references(Source.pk) \n INTEGER fk_dest refences(Postes.pk)"
         "table hsup \n INTEGER not null primary key \n INTEGER mois \n integer ANNEE \n INTEGER DU_25 \n INTEGER PAYE_25 \n INTEGER DIFF_25 \n INTEGER DU_50 \n INTEGER PAYE_50 \n INTEGER DIFF_50 \n INTEGER EQV_HTRAV_SOMMEDIFF"
@@ -11,6 +21,19 @@ node [shape="cylinder" color="blue"]
                 "table jourtrav \n INTEGER not null primary key \n DATETIME debut_poste \n DATETIME fin_poste \n  DATE jour_trav \n INTEGER num_sem_iso(jour_trav) \n  INTEGER num_annee_iso(jour_trav) "
         "table hsemtrav \n INTEGER annee_cal(fin_sem) \n  INTEGER  mois_cal(fin_sem) \n INTEGER nb_heures \n INTEGER num_sem_iso \n INTEGER num_annee_iso"
         "table hsuppay \n INTEGER not null primary key \n INTEGER mois \n INTEGER ANNEE \n INTEGER PAYE_25 \n INTEGER PAYE_50"
+                "table regroupdataheuresusppayees \n INTEGER not null primary key \n INTEGER not null mois \n INTEGER annee INTEGER heures_deduites25CP \n INTEGER hsup25_aubry \n INTEGER hsup25_annu_domo "
+                "table cpmois \n  integer pk primary key \n INTEGER ANNEE \n INTEGER mois \n INTEGER heures_cp \n INTEGER qte_semaine_entieres \n INTEGER heures_deduites25CP  "
+                                "table cpsemaine \n INTEGER PK PRIMARY KEY \n INTEGER ANNEE(fin_semaine) \n INTEGER mois(fin_semaine) \n INTEGER heures_cp \n INTEGER num_iso_semaine \n INTEGER num_annee_iso \n INTEGER debut_periode_repos_couverte  \n  INTEGER fin_periode_repos_couverte "
+                                "table CP \n INTEGER pk primary key \n  DATE date \n  INTEGER heures_cp \n annee(fin semaine) \n mois(fin semaine) \n INTEGER  num_iso_semaine \n INTEGER num_iso_annee"
+
+								
+"tbl bonifhdimnuitepd
+INTEGER mois
+INTEGER annee
+INTEGER effectuees
+INTEGER payees
+INTEGER difference
+" 								
 // notes pour conception description des classe
 node [shape="note" color="blue"]
 
@@ -18,6 +41,12 @@ node [shape="note" color="blue"]
         "classe fp doit comporter nb paniers"
 
         "sce orig documentaire doit comporter pk\n pour plug optionnel \n Postes"
+		"postes 
+		doit comporter 
+		numero_iso_semaine et numero_iso_annee du debut de poste 
+		pour 
+		regrouper les cp
+		par semaines"
         "Postes doit comporter pk \n pour plug optionnel sceDocumentaire"
 
         "table jourtrav \n doit comporter \n num_sem_iso et num_annee_iso \n afin permettre regrouppement sur ce critère \n pour produire hsemtrav "
@@ -57,42 +86,58 @@ node [shape="box" color="black"]
 // mois annee de fiche de paye. du = heures travaillees au delà de 35 heures -> split de ces heures en entre 35 et 43 entre 43 et 48 plus de 48.
 //                              paye = heures aubry 17.33 heures à 25 %   -  4 heures par semaine de cp (1 semaine = 5/5. 1 jour = 1/5 etc.... ) -> payé 25%
 //                              paye = heurs annuelles (2 heures en mai 2017 foutage de g... ) => nécessité dans fiche de paye
-	// branche du
-		// constructin de jourstravailles depuis postes
-  
- 
-		"class Postes(Base):" -> "class JoursTravailles(Base)" [label = "split de donnees: 1 ligne \n en donne \n 1 ou 2 \n trigger"]
-		// modelisatino de jourstravailles
-				"table jourtrav \n doit comporter \n num_sem_iso et num_annee_iso \n afin permettre regrouppement sur ce critère \n pour produire hsemtrav " -> "class JoursTravailles(Base)"
-				"table jourtrav \n INTEGER not null primary key \n DATETIME debut_poste \n DATETIME fin_poste \n  DATE jour_trav \n INTEGER num_sem_iso(jour_trav) \n  INTEGER num_annee_iso(jour_trav) " -> "class JoursTravailles(Base)"
+        // branche du
+                // constructin de jourstravailles depuis postes
+
+
+                "class Postes(Base):" -> "class JoursTravailles(Base)" [label = "split de donnees: 1 ligne \n en donne \n 1 ou 2 \n trigger"]
+                // modelisatino de jourstravailles
+                                "table jourtrav \n doit comporter \n num_sem_iso et num_annee_iso \n afin permettre regrouppement sur ce critère \n pour produire hsemtrav " -> "class JoursTravailles(Base)"
+                                "table jourtrav \n INTEGER not null primary key \n DATETIME debut_poste \n DATETIME fin_poste \n  DATE jour_trav \n INTEGER num_sem_iso(jour_trav) \n  INTEGER num_annee_iso(jour_trav) " -> "class JoursTravailles(Base)"
         // comment remplir jours travailles?
-			"class JoursTravailles(Base)" -> "necessite trigger"
-			"necessite trigger" -> {"trigger sqlite raw sql" "ddl orm" "evt orm"  }
-		// construction de semaines travaillees depuis jourstravailles
-			"class JoursTravailles(Base)" -> "class SemainesTravaillees(Base)" [label = "agregat via vue \n sum(fin période - début periode) \n group by (sem_iso, annee_iso)"]
-		// modélisation semaine travaillees
-			"table hsemtrav \n INTEGER annee_cal(fin_sem) \n  INTEGER  mois_cal(fin_sem) \n INTEGER nb_heures \n INTEGER num_sem_iso \n INTEGER num_annee_iso" -> "class SemainesTravaillees(Base)"
-			"class SemainesTravaillees(Base)" ->  "class calculSemaineHeuresSupDues"
-			"class calculSemaineHeuresSupDues"  -> "class calculMoisHeuresSupDues"
-		// du mois heures sup au heures sup diff
-			"class calculMoisHeuresSupDues"-> "class HeuresSupplementairesDuesEffectueesDifference(Base)"
-			"table hmoishsupdues \n   INTEGER  not null primary key \n INTEGER mois \n  INTEGER annee \n INTEGER DU_25 \n  INTEGER DU_50 \n " -> "class calculMoisHeuresSupDues"
+                        "class JoursTravailles(Base)" -> "necessite trigger"
+                        "necessite trigger" -> {"trigger sqlite raw sql" "ddl orm" "evt orm"  }
+                // construction de semaines travaillees depuis jourstravailles
+                        "class JoursTravailles(Base)" -> "class SemainesTravaillees(Base)" [label = "agregat via vue \n sum(fin période - début periode) \n group by (sem_iso, annee_iso)"]
+                // modélisation semaine travaillees
+                        "table hsemtrav \n INTEGER annee_cal(fin_sem) \n  INTEGER  mois_cal(fin_sem) \n INTEGER nb_heures \n INTEGER num_sem_iso \n INTEGER num_annee_iso" -> "class SemainesTravaillees(Base)"
+                        "class SemainesTravaillees(Base)" ->  "class calculSemaineHeuresSupDues"
+                        "class calculSemaineHeuresSupDues"  -> "class calculMoisHeuresSupDues"
+                // du mois heures sup au heures sup diff
+                        "class calculMoisHeuresSupDues"-> "class HeuresSupplementairesDuesEffectueesDifference(Base)"
+                        "table hmoishsupdues \n   INTEGER  not null primary key \n INTEGER mois \n  INTEGER annee \n INTEGER DU_25 \n  INTEGER DU_50 \n " -> "class calculMoisHeuresSupDues"
 
   // branche payé
-		//  heures sup payees 47 * 4 = 188 heures annuelles (le reste = 20 h ds cp):  soit 17,33 tt le temps sauf cp soit 4h en moins  par semaine (reel).  ou 4h / semaine sauf semaines cp.
-		// 4h par semaine à 25% fonctionne donc. exclure semaines de cp.
-		// du coup :
-		//  pb semaines de cp incompletes : retirer 4 h x n/5 x nb_jr_cp
-		    "class RegroupDataHeuresSupPayees" -> "class HeuresSupPayees"
-			"class FichePaye(Base)"   ->  "class RegroupDataHeuresSupPayees"
-			"class CP" -> "class RegroupDataHeuresSupPayees" [label = "exclure semaines cp"]
-		// le reste
-			"table hsuppay \n INTEGER not null primary key \n INTEGER mois \n INTEGER ANNEE \n INTEGER PAYE_25 \n INTEGER PAYE_50" -> "class HeuresSupPayees"
-			"class HeuresSupPayees" -> "class HeuresSupplementairesDuesEffectueesDifference(Base)" [label = "jointure entre: \n mois de fp \n vaut  mois de fin de semaineiso \n ET  annee_fp vaut \n annee fin semaine_iso" ]
-			"table hsup \n INTEGER not null primary key \n INTEGER mois \n integer ANNEE \n INTEGER DU_25 \n INTEGER PAYE_25 \n INTEGER DIFF_25 \n INTEGER DU_50 \n INTEGER PAYE_50 \n INTEGER DIFF_50 \n INTEGER EQV_HTRAV_SOMMEDIFF" -> "class HeuresSupplementairesDuesEffectueesDifference(Base)"
-			"table hsemhsupdues \n INTEGER not null primary kie \n INTEGER not null mois_fin_sem \n INTEGER not null annee_fin_sem \n INTEGER DU_25 \n INTEGER DU_50 " -> "class calculSemaineHeuresSupDues"
+                //  heures sup payees 47 * 4 = 188 heures annuelles (le reste = 20 h ds cp):  soit 17,33 tt le temps sauf cp soit 4h en moins  par semaine (reel).  ou 4h / semaine sauf semaines cp.
+                // 4h par semaine à 25% fonctionne donc. exclure semaines de cp.
+                // du coup :
+                //  pb semaines de cp incompletes : retirer 4 h x n/5 x nb_jr_cp
 
-			// FIN TACHE
+                   // sous-branche fiche paye
+                                "class FichePaye(Base)"   ->  "class RegroupDataHeuresSupPayees"
+                   // sous-branche cp
+                                                                "table CP \n INTEGER pk primary key \n  DATE date \n  INTEGER heures_cp \n annee(fin semaine) \n mois(fin semaine) \n INTEGER  num_iso_semaine \n INTEGER num_iso_annee" -> "class CP"
+                                "class CP" ->  "class CP semaine"
+                                // cp semaine
+                                "class CP semaine" -> "class CP mois"
+                                                                "table cpsemaine \n INTEGER PK PRIMARY KEY \n INTEGER ANNEE(fin_semaine) \n INTEGER mois(fin_semaine) \n INTEGER heures_cp \n INTEGER num_iso_semaine \n INTEGER num_annee_iso \n INTEGER debut_periode_repos_couverte  \n  INTEGER fin_periode_repos_couverte " -> "class CP semaine"
+                                // cp mois
+                                "class CP mois" -> "class RegroupDataHeuresSupPayees" [label = "exclure semaines cp"]
+                                                                "table cpmois \n  integer pk primary key \n INTEGER ANNEE \n INTEGER mois \n INTEGER heures_cp \n INTEGER qte_semaine_entieres \n INTEGER heures_deduites25CP  " -> "class CP mois"
+                                                // sous-branche reunion  regroup data heures sup payees
+                           "class RegroupDataHeuresSupPayees" -> "class HeuresSupPayees"
+                                "table regroupdataheuresusppayees \n INTEGER not null primary key \n INTEGER not null mois \n INTEGER annee INTEGER heures_deduites25CP \n INTEGER hsup25_aubry \n INTEGER hsup25_annu_domo " -> "class RegroupDataHeuresSupPayees"
+                                "table hsuppay \n INTEGER not null primary key \n INTEGER mois \n INTEGER ANNEE \n INTEGER PAYE_25 \n INTEGER PAYE_50" -> "class HeuresSupPayees"
+                                "class HeuresSupPayees" -> "class HeuresSupplementairesDuesEffectueesDifference(Base)" [label = "jointure entre: \n mois de fp \n vaut  mois de fin de semaineiso \n ET  annee_fp vaut \n annee fin semaine_iso" ]
+                        // sous groupe heures sup payées
+
+        // sous groupe heures sup dues payees difference
+                // le reste
+
+                        "table hsup \n INTEGER not null primary key \n INTEGER mois \n integer ANNEE \n INTEGER DU_25 \n INTEGER PAYE_25 \n INTEGER DIFF_25 \n INTEGER DU_50 \n INTEGER PAYE_50 \n INTEGER DIFF_50 \n INTEGER EQV_HTRAV_SOMMEDIFF" -> "class HeuresSupplementairesDuesEffectueesDifference(Base)"
+                        "table hsemhsupdues \n INTEGER not null primary kie \n INTEGER not null mois_fin_sem \n INTEGER not null annee_fin_sem \n INTEGER DU_25 \n INTEGER DU_50 " -> "class calculSemaineHeuresSupDues"
+
+                        // FIN TACHE
 
 
 
@@ -100,11 +145,26 @@ node [shape="box" color="black"]
 
 
 // TACHE class HeuresNuitSemaineDimancheJourDuesEffectueesDifference(Base)"
-"class JoursTravailles(Base)"   -> "class HeuresJoursNuitTravaillees(Base)"  [label = "split de donnees: 1 ligne \n en donne \n 1 ou 2 \n trigger"]
+
+"class JoursTravailles(Base)"   -> "class HeuresJourTravaillees"
+"class JoursTravailles(Base)"   -> "class HeuresNuitTravaillees"
+"class HeuresJoursNuitTravaillees(Base)"  [label = "split de donnees: 1 ligne \n en donne \n 1 ou 2 \n trigger"]
 "class HeuresJoursNuitTravaillees(Base)" -> { "class HeuresNuitSemaineDimancheJourDuesEffectueesDifference(Base)" "HeuresDimancheNuitEffectueesPayeesDifference(Base)" }
+
 // FIN TACHE
 
 // TACHE "HeuresDimancheNuitEffectueesPayeesDifference(Base)"
+"class HeuresNuitTravaillees" -> "class HeuresDimancheNuitTravaillees"
+"class HeuresDimancheNuitTravaillees" -> "class agregHeuresDimanchesNuitTravailleesMois"
+"class agregHeuresDimanchesNuitTravailleesMois" -> "HeuresDimancheNuitEffectueesPayeesDifference(Base)"
+"tbl bonifhdimnuitepd
+INTEGER mois
+INTEGER annee
+INTEGER effectuees
+INTEGER payees
+INTEGER difference
+" -> "HeuresDimancheNuitEffectueesPayeesDifference(Base)"
+
 // FIN TACHE
 
 // TACHE "HeuresJoursFerieDuesEffectueesDifference(Base)"
@@ -147,22 +207,46 @@ node [shape="box" color="black"]
         "classe fp doit comporter nb paniers" -> "class FichePaye(Base)"
         "class FichePaye(Base)" -> "class PaniersPayes"
         "class PaniersPayes" -> "class PaniersDusPaniersPayesDifference"
-        "class ExclureSabattique" -> "Class PaniersDus(Base)"
+        "class ExclureSabattique(Base)" -> "Class PaniersDus(Base)"
         "Class PaniersDus(Base)" -> "class PaniersDusPaniersPayesDifference"
  // FIN DE TACHE VERIFICATION PANIERS PAYES = PANIERS DUS
 // FIN TACHE
 
 //  carte grille cornouialle clef boitier lecture ticket  ds 06 60 82 97 41  m  corecter
 
-// TACHE CONSTRUCTION DU PLANNING
-"source fich Postes" -> "class Postes(Base):"
-"postes d un planning \n pk: INTEGER NOT NULL PRIMARY KEY \n horod_debut: DateTime \n horod_fin : Datetime \n type_poste : ENUM \n categorie : ENUM" -> "class Postes(Base):"
+// TACHE CONSTRUCTION SOURCE DOCUMENTAIRE
 "source origine documentaire" -> "class sourceDocumentaire"
 "class sourceDocumentaire" -> "tbl interm"
 "tbl interm" -> "class Postes(Base):"
 "sce orig documentaire doit comporter pk\n pour plug optionnel \n Postes"  -> "class sourceDocumentaire"
-"Postes doit comporter pk \n pour plug optionnel sceDocumentaire" -> "class Postes(Base):"
 "tbl interm \n INTEGER not null primary key \n INTEGER fk_sce references(Source.pk) \n INTEGER fk_dest refences(Postes.pk)" -> "tbl interm"
+// fin de tache 
+
+
+// TACHE CONSTRUCTION DU PLANNING
+
+"source fich Postes" -> "class Postes(Base):"
+	// les notes 
+		"postes d un planning
+		pk: INTEGER NOT NULL PRIMARY KEY
+		horod_debut: DateTime
+		horod_fin : Datetime
+		type_poste : ENUM
+		categorie : ENUM
+		numero_semaine_iso INTEGER
+		numero_annee_iso INTEGER
+		date_mail
+		nom_fichier_joint" -> "class Postes(Base):"
+ 		"postes 
+		doit comporter 
+		numero_iso_semaine et numero_iso_annee du debut de poste 
+		pour 
+		regrouper les cp
+		par semaines" -> "class Postes(Base):"
+	// fin des notes
+
+"Postes doit comporter pk \n pour plug optionnel sceDocumentaire" -> "class Postes(Base):"
+
 // FIN TACHE CONSTRUCTION DU PLANNING
 
 // TACHE CONSTRUCTION FICHE PAYE
