@@ -15,6 +15,11 @@ node [shape="cylinder" color="blue"]
                 "table cpmois \n  integer pk primary key \n INTEGER ANNEE \n INTEGER mois \n INTEGER heures_cp \n INTEGER qte_semaine_entieres \n INTEGER heures_deduites25CP  "
                                 "table cpsemaine \n INTEGER PK PRIMARY KEY \n INTEGER ANNEE(fin_semaine) \n INTEGER mois(fin_semaine) \n INTEGER heures_cp \n INTEGER num_iso_semaine \n INTEGER num_annee_iso \n INTEGER debut_periode_repos_couverte  \n  INTEGER fin_periode_repos_couverte "
                                 "table CP \n INTEGER pk primary key \n  DATE date \n  INTEGER heures_cp \n annee(fin semaine) \n mois(fin semaine) \n INTEGER  num_iso_semaine \n INTEGER num_iso_annee"
+
+	"create view bornes  as 
+	select min(date(jour_travaille)) as d, 
+	max(date(jour_travaille)) as f
+	from periodes_travaillees ;"						
 // notes pour conception description des classe
 node [shape="note" color="blue"]
 
@@ -52,7 +57,7 @@ node [shape="box" color="black"]
 "class sourceDocumentaire"
  "class Postes(Base):"
 "Class PaniersDus(Base)"
-"class JoursTravailles(Base)"
+"class PeriodesTravaillees(Base)"
 "class FichePaye(Base)"
 "class ExclureSabatique(Base)"
 
@@ -62,18 +67,18 @@ node [shape="box" color="black"]
 //                              paye = heures aubry 17.33 heures à 25 %   -  4 heures par semaine de cp (1 semaine = 5/5. 1 jour = 1/5 etc.... ) -> payé 25%
 //                              paye = heurs annuelles (2 heures en mai 2017 foutage de g... ) => nécessité dans fiche de paye
         // branche du
-                // constructin de jourstravailles depuis postes
+                // constructin de PeriodesTravaillees depuis postes
 
 
-                "class Postes(Base):" -> "class JoursTravailles(Base)" [label = "split de donnees: 1 ligne \n en donne \n 1 ou 2 \n trigger"]
-                // modelisatino de jourstravailles
-                                "table jourtrav \n doit comporter \n num_sem_iso et num_annee_iso \n afin permettre regrouppement sur ce critère \n pour produire hsemtrav " -> "class JoursTravailles(Base)"
-                                "table jourtrav \n INTEGER not null primary key \n DATETIME debut_poste \n DATETIME fin_poste \n  DATE jour_trav \n INTEGER num_sem_iso(jour_trav) \n  INTEGER num_annee_iso(jour_trav) " -> "class JoursTravailles(Base)"
+                "class Postes(Base):" -> "class PeriodesTravaillees(Base)" [label = "split de donnees: 1 ligne \n en donne \n 1 ou 2 \n trigger"]
+                // modelisatino de PeriodesTravaillees
+                                "table jourtrav \n doit comporter \n num_sem_iso et num_annee_iso \n afin permettre regrouppement sur ce critère \n pour produire hsemtrav " -> "class PeriodesTravaillees(Base)"
+                                "table jourtrav \n INTEGER not null primary key \n DATETIME debut_poste \n DATETIME fin_poste \n  DATE jour_trav \n INTEGER num_sem_iso(jour_trav) \n  INTEGER num_annee_iso(jour_trav) " -> "class PeriodesTravaillees(Base)"
         // comment remplir jours travailles?
-                        "class JoursTravailles(Base)" -> "necessite trigger"
+                        "class PeriodesTravaillees(Base)" -> "necessite trigger"
                         "necessite trigger" -> {"trigger sqlite raw sql" "ddl orm" "evt orm"  }
-                // construction de semaines travaillees depuis jourstravailles
-                        "class JoursTravailles(Base)" -> "class SemainesTravaillees(Base)" [label = "agregat via vue \n sum(fin période - début periode) \n group by (sem_iso, annee_iso)"]
+                // construction de semaines travaillees depuis PeriodesTravaillees
+                        "class PeriodesTravaillees(Base)" -> "class SemainesTravaillees(Base)" [label = "agregat via vue \n sum(fin période - début periode) \n group by (sem_iso, annee_iso)"]
                 // modélisation semaine travaillees
                         "table hsemtrav \n INTEGER annee_cal(fin_sem) \n  INTEGER  mois_cal(fin_sem) \n INTEGER nb_heures \n INTEGER num_sem_iso \n INTEGER num_annee_iso" -> "class SemainesTravaillees(Base)"
                         "class SemainesTravaillees(Base)" ->  "class calculSemaineHeuresSupDues"
@@ -120,7 +125,7 @@ node [shape="box" color="black"]
 
 
 // TACHE class HeuresNuitSemaineDimancheJourDuesEffectueesDifference(Base)"
-"class JoursTravailles(Base)"   -> "class HeuresJoursNuitTravaillees(Base)"  [label = "split de donnees: 1 ligne \n en donne \n 1 ou 2 \n trigger"]
+"class PeriodesTravaillees(Base)"   -> "class HeuresJoursNuitTravaillees(Base)"  [label = "split de donnees: 1 ligne \n en donne \n 1 ou 2 \n trigger"]
 "class HeuresJoursNuitTravaillees(Base)" -> { "class HeuresNuitSemaineDimancheJourDuesEffectueesDifference(Base)" "HeuresDimancheNuitEffectueesPayeesDifference(Base)" }
 // FIN TACHE
 
@@ -133,7 +138,7 @@ node [shape="box" color="black"]
 // TACHE "class ChevauchementCP(Base)"
  "class Postes(Base):" -> "class CP"
  "class CP" -> "class ChevauchementCP(Base)"
- "class JoursTravailles(Base)" -> "class ChevauchementCP(Base)"
+ "class PeriodesTravaillees(Base)" -> "class ChevauchementCP(Base)"
 // FIN TACHE
 
 // TACHE "class VolumeHoraireANnuelVolumeAnnuel39HeuresDifference(Base)"
@@ -148,11 +153,21 @@ node [shape="box" color="black"]
 
 // TACHE "class AnomalieRespectViePriveeDimanchesTotauxtrimCPHorsCpMoitiesupFourniesDifference(Base)"
 // TACHE NOMBRE DE WE RESPECT VIE PRIVEE
-"class JoursTravailles(Base)" -> "class AnomalieRespectViePriveeDimanchesTotauxtrimCPHorsCpMoitiesupFourniesDifference(Base)"
+"class PeriodesTravaillees(Base)" -> "class AnomalieRespectViePriveeDimanchesTotauxtrimCPHorsCpMoitiesupFourniesDifference(Base)"
+"class PeriodesTravaillees(Base)" -> "create view bornes  as 
+	select min(date(jour_travaille)) as d, 
+	max(date(jour_travaille)) as f
+	from periodes_travaillees ;" [label = Extraction ]
+	
+	"create view bornes  as 
+	select min(date(jour_travaille)) as d, 
+	max(date(jour_travaille)) as f 
+	from periodes_travaillees ;" -> bornes 
+bornes -> dimanches
 "calcul ListeDimanchesAnnuels" -> "class ListeDimanchesTrimestre"
 "class CP" -> "class AnomalieRespectViePriveeDimanchesTotauxtrimCPHorsCpMoitiesupFourniesDifference(Base)"
 "class ListeDimanchesTrimestre" -> "class AnomalieRespectViePriveeDimanchesTotauxtrimCPHorsCpMoitiesupFourniesDifference(Base)"
-"class JoursTravailles(Base)" -> "class AnomalieRespectViePriveeDimanchesTotauxtrimCPHorsCpMoitiesupFourniesDifference(Base)"
+"class PeriodesTravaillees(Base)" -> "class AnomalieRespectViePriveeDimanchesTotauxtrimCPHorsCpMoitiesupFourniesDifference(Base)"
 // FIN TACHE NOMBRE DE WE RESPECT VIE PRIMVEE
 // FIN TACHE
 
@@ -215,8 +230,8 @@ node [shape="box" color="black"]
 
 
 "class SemainesTravaillees(Base)" -> "class AnomaliePlusDe48(Base)"
-"class JoursTravailles(Base)" -> "class AnomaliePlusDe48SemaineGlissante(Base)" [label = "algo à déterminer"]
+"class PeriodesTravaillees(Base)" -> "class AnomaliePlusDe48SemaineGlissante(Base)" [label = "algo à déterminer"]
 "source texte \n liste jours fériés" -> "HeuresJoursFerieDuesEffectueesDifference(Base)"
-"class JoursTravailles(Base)" -> "HeuresJoursFerieDuesEffectueesDifference(Base)"
+"class PeriodesTravaillees(Base)" -> "HeuresJoursFerieDuesEffectueesDifference(Base)"
 
 }
