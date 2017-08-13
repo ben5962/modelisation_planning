@@ -1,4 +1,5 @@
 begin transaction;
+drop table if exists periodes_travaillees;
 CREATE TABLE periodes_travaillees ( 
 	debut_periode timestamp, 
 	fin_periode timestamp CHECK(fin_periode > debut_periode), 

@@ -54,4 +54,4 @@ round(sum( (julianday(inter.f) - julianday(inter.d)) * 24 ))
 from inter
 group by debut_periode
 ;
-
+https://www.youtube.com/watch?v=tKyzkFglx2k repa voiture
