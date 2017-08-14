@@ -2,7 +2,7 @@ drop table if exists tranche_jour_travaille;
 create table tranche_jour_travaille ( d TEXT not null, f TEXT not null, j TEXT not null);
 
 delete from tranche_jour_travaille;
-
+-- tests.
 --- insertions intéressantes:
 --- le premier est une semaine iso 52 alors que janvier. l annee iso doit donner annee calendaire -1.
 --- le preier janvier 2017 est un dimanche.
@@ -48,8 +48,8 @@ from tranche_jour_travaille t;
 ---
 --- regroupement par semaine iso
 
-drop view if exists cumul_semaine_iso;
-create view cumul_semaine_iso as
+drop view if exists cumul_h_semaine_iso;
+create view cumul_h_semaine_iso as
 select i.first_d_iso_week as d_sem_iso,
 i.last_d_iso_week as f_sem_iso,
 round(sum(julianday(i.f) - julianday(i.d)) * 24) as volhebdo,
@@ -60,12 +60,95 @@ i.yearfp as yfp
 from tr_jour_avec_iso i
 group by i.iso_week, i.iso_year;
 
+-- en deduire les heures sup dues
+drop view if exists hsup_dues_semaine_iso;
+create view hsup_dues_semaine_iso as 
+select 
+c.d_sem_iso as d_sem,
+c.f_sem_iso as f_sem,
+c.volhebdo as vh,
+case
+   when c.volhebdo <= 35 then 0
+   when c.volhebdo > 35 and c.volhebdo < 43 then c.volhebdo - 35
+   when c.volhebdo >= 43 then 43 - 35
+end hs25,
+case
+    when c.volhebdo <= 43 then 0
+	when c.volhebdo > 43 then abs(43 - c.volhebdo)
+end hs50,
+c.isoweek as isoweek,
+c.isoyear as isoyear,
+c.mfp as mfp,
+c.yfp as yfp
+from cumul_h_semaine_iso c;
+select * from hsup_dues_semaine_iso;
 
+--- rattachement des heures supplementaires dues au mois.
+-- 1° methode : on peut regrouper les heures sup par semaines terminées  sur le mois:
+drop view if exists regroupement_fp_hs_dues;
+create view regroupement_fp_hs_dues as 
+select 
+h.yfp as yfp,
+h.mfp as mfp,
+sum(h.hs25) as hs25,
+sum(h.hs50) as hs50
+from hsup_dues_semaine_iso as h
+group by h.yfp, h.mfp;
+select * from regroupement_fp_hs_dues;
+-- 2° méthode : ou mieux proratiser les semaines sur les mois en les explosant en heures par jour. 
+-- puis en proratisant au mois
+drop view if exists degroupage_fp_proratise;
+create view degroupage_fp_proratise as
+select h.d_sem, h.hs25/7.0 as hs25, h.hs50/7.0 as hs50,
+strftime('%Y', h.d_sem) as yfp,
+strftime('%m', h.d_sem) as mfp
+from hsup_dues_semaine_iso h
+union
+select date(h.d_sem, 'weekday 2'), h.hs25/7.0 as hs25, h.hs50/7.0 as hs50,
+strftime('%Y', date(h.d_sem, 'weekday 2')) as yfp,
+strftime('%m', date(h.d_sem, 'weekday 2')) as mfp
+from hsup_dues_semaine_iso h
+union
+select date(h.d_sem, 'weekday 3'), h.hs25/7.0 as hs25, h.hs50/7.0 as hs50,
+strftime('%Y', date(h.d_sem, 'weekday 3')) as yfp,
+strftime('%m', date(h.d_sem, 'weekday 3')) as mfp
+from hsup_dues_semaine_iso h
+union
+select date(h.d_sem, 'weekday 4'), h.hs25/7.0 as hs25, h.hs50/7.0 as hs50,
+strftime('%Y', date(h.d_sem, 'weekday 4')) as yfp,
+strftime('%m', date(h.d_sem, 'weekday 4')) as mfp
+from hsup_dues_semaine_iso h
+union
+select date(h.d_sem, 'weekday 5'), h.hs25/7.0 as hs25, h.hs50/7.0 as hs50,
+strftime('%Y', date(h.d_sem, 'weekday 5')) as yfp,
+strftime('%m', date(h.d_sem, 'weekday 5')) as mfp
+from hsup_dues_semaine_iso h
+union
+select date(h.d_sem, 'weekday 6'), h.hs25/7.0 as hs25, h.hs50/7.0 as hs50,
+strftime('%Y', date(h.d_sem, 'weekday 6')) as yfp,
+strftime('%m', date(h.d_sem, 'weekday 6')) as mfp
+from hsup_dues_semaine_iso h
+union
+select date(h.d_sem, 'weekday 6','+1 day'), h.hs25/7.0 as hs25, h.hs50/7.0 as hs50,
+strftime('%Y', date(h.d_sem, 'weekday 6','+1 day')) as yfp,
+strftime('%m', date(h.d_sem, 'weekday 6','+1 day')) as mfp
+from hsup_dues_semaine_iso h;
+select * from degroupage_fp_proratise;
 
---- heures supplementaires dues
---- payees difference 25
---- dues payees difference 50
+drop view if exists regroupement_hs_fp_proratise;
+create view regroupement_hs_fp_proratise as
+select 
+round(sum(d.hs25)) as hs25,
+round(sum(d.hs50)) as hs50,
+d.yfp,
+d.mfp
+from degroupage_fp_proratise d
+group by d.yfp, d.mfp;
+select * from regroupement_hs_fp_proratise;
 
+-- heure supplementairs payees
+-- payees 50 ? 0. pb réglé. 
+--- payees25 ?  voici. 
 
 drop table if exists fpaye;
 create table fpaye (
@@ -76,7 +159,7 @@ aubry_25 FLOAT not null default 17.33,
 -- aubry_25_r FLOAT not null default, --from paye_r vue de fpaye et sem_cp_mois
 annu_25 FLOAT not null default 0.0,
 h_dimjour_nuithorsdim_10 INTEGER not null default 0.0,
-h_dimnuit_20 INTEGER not null default 0.0
+h_dimnuit_20 FLOAT not null default 0.0
 -- nb_sem_cp FLOAT not null -- fro
 );
 
@@ -213,4 +296,27 @@ join  sem_cp_mois s
 on f.m = s.moisfp and f.a = s.anneefp
 ; 
 
--- usage: inserer 
+-- usage: inserer un mois fp, meme sans param aubry. saisir des cp. septembre est un bon candidat pour cela:
+insert into fpaye (m, a) values ('9','2017'); -- valeurs par défaut pour les autres parametres
+delete from cp_semaine_iso;
+insert into cp_semaine_iso (semaine_iso, annee_iso) values ('36','2017'), ('37','2017');
+delete from tranche_jour_travaille;
+-- mettre le planning de septembre.
+insert into tranche_jour_travaille (d, f , j) values
+('2017-01-01 06:00:00', '2017-01-01 18:00:00', '2017-01-01'),
+('2017-01-02 06:00:00', '2017-01-02 18:00:00', '2017-01-02'),
+('2017-08-14 18:00:00','2017-08-15 00:00:00','2017-08-14' ),
+('2017-08-15 00:00:00','2017-08-15 02:00:00','2017-08-15' ),
+('2017-08-15 18:00:00','2017-08-16 00:00:00','2017-08-15' ),
+('2017-08-16 00:00:00','2017-08-16 06:00:00','2017-08-16' ),
+('2017-08-16 18:00:00','2017-08-17 00:00:00','2017-08-16' ),
+('2017-08-17 00:00:00','2017-08-17 06:00:00','2017-08-17' ),
+('2017-08-19 18:00:00','2017-08-20 00:00:00','2017-08-19' ),
+('2017-08-20 00:00:00','2017-08-20 02:00:00','2017-08-20' ),
+('2017-08-20 18:00:00','2017-08-21 00:00:00','2017-08-20' ),
+('2017-08-21 00:00:00','2017-08-21 06:00:00','2017-08-21' ),
+('2017-08-21 18:00:00','2017-08-22 00:00:00','2017-08-21' ),
+('2017-08-22 00:00:00','2017-08-22 06:00:00','2017-08-22' ),
+('2017-08-28 06:00:00','2017-08-28 18:00:00','2017-08-28' )
+;
+
