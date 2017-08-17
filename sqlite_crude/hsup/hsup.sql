@@ -318,5 +318,48 @@ insert into tranche_jour_travaille (d, f , j) values
 ('2017-08-21 18:00:00','2017-08-22 00:00:00','2017-08-21' ),
 ('2017-08-22 00:00:00','2017-08-22 06:00:00','2017-08-22' ),
 ('2017-08-28 06:00:00','2017-08-28 18:00:00','2017-08-28' )
-;
+;		
+
+
+-- tentative de prod de planning compact depuis slite :
+/* drop table if exists pl_compact;
+create table pl_compact(
+  jours TEXT not null,
+  mois TEXT not null,
+  annee TEXT not null
+  );
+
+drop table if exists pl;
+create table pl(
+  jour TEXT not null,
+  mois TEXT ,
+  annee TEXT
+  );
+
+create trigger ajout_machin after insert on pl_compact
+begin
+WITH RECURSIVE
+split(word, str, hascomma) AS (
+    values('',NEW.jours,1)
+    UNION ALL SELECT
+    substr(str, 0, 
+        case when instr(str, ',')
+        then instr(str, ',')
+        else length(str)+1 end),
+    ltrim(substr(str, instr(str, ',')), ','),
+    instr(str, ',')
+    FROM split
+    WHERE hascomma
+)
+
+insert into pl (jour, mois, annee) 
+select trim(split.word), NEW.mois, NEW.annee 
+from split 
+cross join NEW ;
+
+end;
+delete from pl_compact; */
+-- insert into pl_compact(jours, mois, annee) values ('1,2,3,4','12','1993');
+-- select * from pl;
+
 
