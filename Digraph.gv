@@ -1,0 +1,15 @@
+// des taches au code
+digraph {
+	node [shape=note]
+	"postes d un planning 
+ horod_debut: DateTime 
+ horod_fin : Datetime 
+ type_poste : ENUM 
+ categorie : ENUM"
+	node [shape=note]
+	"postes d un planning 
+ horod_debut: DateTime 
+ horod_fin : Datetime 
+ type_poste : ENUM 
+ categorie : ENUM"
+}
