@@ -1,0 +1,5 @@
+https://stackoverflow.com/questions/33524327/python-sqlite3-adapter-for-custom-type
+https://www.google.fr/search?q=python+sqlite3+register_adapter&rlz=1C1CHBD_frFR730FR730&oq=python+sqlite3+adapter+&aqs=chrome.2.69i57j0l2j69i60.10357j0j4&sourceid=chrome&ie=UTF-8
+https://docs.python.org/3/library/sqlite3.html
+https://pymotw.com/2/sqlite3/
+https://stackoverflow.com/questions/33524327/python-sqlite3-adapter-for-custom-type
